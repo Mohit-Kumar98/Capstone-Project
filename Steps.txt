@@ -1,21 +1,11 @@
+To address these requirements, let’s break down the approach into detailed steps for each section of the summary. This structured method ensures that all essential elements are captured and the solution is optimized for token usage and relevance.
+
+Detailed Approach
+
+Step 1: Extract Text from PDF
+
 import PyPDF2
-import spacy
-from sentence_transformers import SentenceTransformer
-import faiss
-import numpy as np
-import openai
-from docx import Document
 
-# Set up OpenAI API key
-openai.api_key = 'YOUR_API_KEY'
-
-# Load spaCy model
-nlp = spacy.load('en_core_web_sm')
-
-# Load SentenceTransformer model
-model = SentenceTransformer('all-MiniLM-L6-v2')
-
-# Extract text from PDF
 def extract_text_from_pdf(pdf_path):
     with open(pdf_path, 'rb') as file:
         reader = PyPDF2.PdfReader(file)
@@ -24,12 +14,20 @@ def extract_text_from_pdf(pdf_path):
             text += page.extract_text()
     return text
 
-# Preprocess text
+Step 2: Preprocess Text
+
+import spacy
+
+nlp = spacy.load('en_core_web_sm')
+
 def preprocess_text(text):
     doc = nlp(text)
     return ' '.join([token.lemma_ for token in doc if not token.is_stop and not token.is_punct])
 
-# Extract Business Overview
+Step 3: Information Extraction
+
+	1.	Business Overview Extraction:
+
 def extract_business_overview(text):
     doc = nlp(text)
     business_overview = {
@@ -45,6 +43,7 @@ def extract_business_overview(text):
     }
 
     # Extract relevant details using NER and regex patterns
+    # Example: Extracting headquarters location
     for ent in doc.ents:
         if ent.label_ == "GPE":
             business_overview["headquarters_location"] = ent.text
@@ -52,17 +51,20 @@ def extract_business_overview(text):
 
     return business_overview
 
-# Extract Business Segment Overview
+	2.	Business Segment Overview Extraction:
+
 def extract_business_segment_overview(text):
     doc = nlp(text)
     segments = {}
     # Define rules or patterns to extract segments
+    # Example:
     for ent in doc.ents:
         if ent.label_ == "ORG":
             segments[ent.text] = {"revenue_percentage": "", "performance": {}}
     return segments
 
-# Extract Geographical Breakdown
+	3.	Geographical Breakdown Extraction:
+
 def extract_geographical_breakdown(text):
     doc = nlp(text)
     geography = {}
@@ -72,23 +74,44 @@ def extract_geographical_breakdown(text):
             geography[ent.text] = {"sales_percentage": "", "workforce": "", "clients": "", "offices": ""}
     return geography
 
-# Generate embeddings
+Step 4: Embeddings and Vector Storage
+
+	1.	Generate Embeddings:
+
+from sentence_transformers import SentenceTransformer
+
+model = SentenceTransformer('all-MiniLM-L6-v2')
+
 def get_embeddings(texts):
     return model.encode(texts)
 
-# Store embeddings in vector database
+	2.	Store Embeddings in Vector Database:
+
+import faiss
+import numpy as np
+
 def store_embeddings(embeddings):
     dim = embeddings.shape[1]
     index = faiss.IndexFlatL2(dim)
     index.add(embeddings)
     return index
 
-# Retrieve relevant chunks
+Step 5: Similarity Search
+
+	1.	Retrieve Relevant Chunks:
+
 def search_similar_chunks(index, query_embedding, k=5):
     D, I = index.search(np.array([query_embedding]), k)
     return I
 
-# Summarize text with OpenAI API
+Step 6: Summarization with ChatGPT
+
+	1.	Call OpenAI API:
+
+import openai
+
+openai.api_key = 'YOUR_API_KEY'
+
 def summarize_text(text_chunks):
     summaries = []
     for chunk in text_chunks:
@@ -100,7 +123,12 @@ def summarize_text(text_chunks):
         summaries.append(response['choices'][0]['message']['content'])
     return summaries
 
-# Generate summary document
+Step 7: Document Generation
+
+	1.	Generate 1-page and 2-page Summaries:
+
+from docx import Document
+
 def create_summary_doc(summary, output_path):
     doc = Document()
     doc.add_heading('Financial Report Summary', 0)
@@ -109,7 +137,10 @@ def create_summary_doc(summary, output_path):
         doc.add_paragraph(section_content)
     doc.save(output_path)
 
-# Main workflow
+Step 8: Combining All Steps
+
+	1.	Complete Workflow:
+
 def main(pdf_path, output_path):
     text = extract_text_from_pdf(pdf_path)
     preprocessed_text = preprocess_text(text)
@@ -139,3 +170,20 @@ def main(pdf_path, output_path):
 
 if __name__ == "__main__":
     main("path/to/financial_report.pdf", "path/to/summary.docx")
+
+Key Sections to Implement:
+
+	•	Business Overview: Extract detailed company information.
+	•	Business Segment Overview: Analyze revenue distribution and performance.
+	•	Geographical Breakdown: Breakdown of sales and operations by geography.
+	•	SWOT Analysis: Identify strengths, weaknesses, opportunities, and threats.
+	•	Performance Analysis: Year-over-year comparison and analysis.
+	•	Credit Rating: Information about credit ratings and changes.
+
+Optimization Tips:
+
+	•	Chunk Size: Ensure chunks passed to ChatGPT are within token limits.
+	•	Cost Management: Start with gpt-3.5-turbo and upgrade only if necessary.
+	•	Relevance: Use embeddings to focus on relevant sections, minimizing token usage.
+
+This structured approach ensures a comprehensive, efficient, and optimized summarization process for financial reports. If you need further details or code refinements, feel free to ask!

@@ -1,0 +1,17 @@
+Capstone Project
+
+1. Which File to Go with?
+    1.  I can Go with .py
+2. Have Openai in your System.
+    1. Pip Install Openai
+3. EveryTime we are Calling ChatGPT api it is consuming Token.
+4. Start With Lower Model and then Update to Bigger model consume more token.
+5. Should not pass whole pdf to LLM use rags 
+    1. In Rags we are conversion pdf into embedding then we are storing it to vector database. Then we are doing similarity search to figure out the relevant chunks and only those chunks need to be  passed to LLM Model. To reduce no of token.
+6. There is a Limit in Every Version of LLM to pass a Token. (In/Op total Token-4000) more than 4000 token request will get fail.
+7. RAG to store and retrieve vector 
+8. For embedding,Storage use open Source DBMS 
+    1. Lama index LLM give good embedding
+    2. S-bird
+    3. GCP geek
+9. Start with gpt-3.5-turbo then go to gpt-4-turbo much cheaper than gpt-4
