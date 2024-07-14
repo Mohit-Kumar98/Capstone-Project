@@ -1,8 +1,12 @@
 import PyPDF2
+from sentence_transformers import SentenceTransformer
+import faiss
+import numpy as np
 import openai
 from docx import Document
 
-openai.api_key = 'open ai api key will come here'
+# Set your OpenAI API key here
+openai.api_key = 'your-api-key-here'
 
 def pdf_to_text(file_path):
     """Convert PDF to text."""
@@ -11,7 +15,23 @@ def pdf_to_text(file_path):
         text = ''
         for page_num in range(len(reader.pages)):
             text += reader.pages[page_num].extract_text()
-    return text 
+    return text
+
+def get_embeddings(text, model_name='all-MiniLM-L6-v2'):
+    """Convert text into embeddings using SentenceTransformer."""
+    model = SentenceTransformer(model_name)
+    sentences = text.split('\n')
+    embeddings = model.encode(sentences)
+    return sentences, embeddings
+
+def perform_similarity_search(query, sentences, embeddings, top_k=5):
+    """Perform similarity search to find relevant chunks."""
+    model = SentenceTransformer('all-MiniLM-L6-v2')
+    query_embedding = model.encode([query])[0]
+    index = faiss.IndexFlatL2(embeddings.shape[1])
+    index.add(embeddings)
+    D, I = index.search(np.array([query_embedding]), top_k)
+    return [sentences[i] for i in I[0]]
 
 def summarize_section(text, section_title, max_tokens=1500):
     """Summarize a specific section using OpenAI API."""
@@ -45,10 +65,13 @@ def generate_summaries(financial_text):
     ]
     
     summaries = {}
+    sentences, embeddings = get_embeddings(financial_text)
     for section in sections:
-        summaries[section] = summarize_section(financial_text, section, max_tokens=3000 if section == "Business Overview" else 1500)
+        relevant_chunks = perform_similarity_search(section, sentences, embeddings)
+        relevant_text = '\n'.join(relevant_chunks)
+        summaries[section] = summarize_section(relevant_text, section, max_tokens=3000 if section == "Business Overview" else 1500)
     
-    # Summaries
+    # Generate combined summaries
     two_page_summary = "\n\n".join([f"{section}\n{summaries[section]}" for section in summaries])
     one_page_summary = summarize_section(two_page_summary, "1-page summary", max_tokens=1500)
     
@@ -64,8 +87,7 @@ def generate_summary_doc(summary, output_path):
 
 def main():
     """Main function to convert PDF to text and generate summaries."""
-
-    # Extract text from pdf
+    # Convert PDF to text
     financial_text = pdf_to_text('financial_report.pdf')
     
     # Generate and save summaries
@@ -73,11 +95,6 @@ def main():
     
     generate_summary_doc(two_page_summary, 'two_page_summary.docx')
     generate_summary_doc(one_page_summary, 'one_page_summary.docx')
-    file = open("myfile.txt","w")
-
-    file.write(financial_text)
-    file.close()
-
 
 if __name__ == '__main__':
     main()
