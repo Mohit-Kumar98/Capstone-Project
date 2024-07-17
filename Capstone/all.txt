@@ -338,3 +338,77 @@ You are an AI tasked with summarizing a company's financial reports, including m
 
 Summarize the financial report by including the above sections. Ensure the summary is concise, clear, and covers all the necessary details to give a comprehensive understanding of the company's financial health and strategic direction.
 """
+
+
+
+
+
+import openai
+import os
+import pdfplumber
+from dotenv import load_dotenv
+
+load_dotenv()
+
+# Check if the API key is correctly loaded
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY environment variable not set.")
+os.environ['OPENAI_API_KEY'] = api_key
+
+SUMMARIZE_TABLE_PROMPT = """
+You are an AI tasked with summarizing financial data presented in a table format. The table provides detailed information about the company's financial performance. Analyze the table and provide a concise summary highlighting the key points.
+
+Table:
+{table_text}
+
+Summary:
+"""
+
+def extract_tables_from_pdf(pdf_path):
+    tables = []
+    with pdfplumber.open(pdf_path) as pdf:
+        for page in pdf.pages:
+            extracted_tables = page.extract_tables()
+            tables.extend(extracted_tables)
+    return tables
+
+def convert_table_to_text(table):
+    table_text = ""
+    for row in table:
+        row_text = " | ".join([str(cell) for cell in row])
+        table_text += row_text + "\n"
+    return table_text
+
+def create_table_summary_prompt(table_text):
+    return SUMMARIZE_TABLE_PROMPT.format(table_text=table_text)
+
+def summarize_table(table_text):
+    prompt = create_table_summary_prompt(table_text)
+
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    summary = response.choices[0].message.content.strip()
+    return summary
+
+def main():
+    pdf_path = "path_to_your_pdf_file.pdf"
+
+    # Step 1: Extract tables from PDF
+    tables = extract_tables_from_pdf(pdf_path)
+
+    # Step 2: Convert tables to text and summarize each table
+    for table in tables:
+        table_text = convert_table_to_text(table)
+        summary = summarize_table(table_text)
+        print("Table Summary:")
+        print(summary)
+        print("\n" + "="*80 + "\n")
+
+if __name__ == "__main__":
+    main()
