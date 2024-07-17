@@ -1,0 +1,58 @@
+# time consuming...
+import os
+from unstructured.partition.pdf import partition_pdf
+from langchain_text_splitters import CharacterTextSplitter
+
+def pdf_elements(path, fname):
+    return partition_pdf(
+        strategy = "hi_res",
+        filename=fname,
+        extract_images_in_pdf=True,
+        infer_table_structure=True,
+        chunking_strategy="by_title",
+        max_characters=4000,
+        new_after_n_chars=3800,
+        combine_text_under_n_chars=2000,
+       # image_output_dir_path=path,
+        extract_image_block_to_payload=False,
+        extract_image_block_output_dir= fname+"figures_dir",
+    )
+
+
+def generate_texts_n_tables(pdf_elements):
+    tables = []
+    texts = []
+    for ele in pdf_elements:
+        if "unstructured.documents.elements.Table" in str(type(ele)):
+            tables.append(str(ele))
+        elif "unstructured.documents.elements.CompositeElement" in str(type(ele)):
+            texts.append(str(ele))
+    return texts, tables
+
+
+# Change files directory and file names for development purpose onl!
+fpath = "/content/rag/"
+
+text_list = []
+table_list = []
+token_list = []
+
+for pdf_file in sorted(os.listdir(fpath)):
+    if pdf_file.endswith(".pdf"):
+        print(pdf_file)
+        pdf_path = os.path.join(fpath, pdf_file)
+        x = pdf_elements(fpath, pdf_path)
+        texts, tables = generate_texts_n_tables(x)
+        text_list.append(texts)
+        table_list.append(tables)
+        # Optional:specific token size for texts
+        text_splitter = CharacterTextSplitter.from_tiktoken_encoder(
+            chunk_size=4000, chunk_overlap=0
+        )
+        joined_texts = " ".join(texts)
+        texts_token = text_splitter.split_text(joined_texts)
+        token_list.append(texts_token)
+
+
+
+# texts,tables
