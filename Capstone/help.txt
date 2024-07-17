@@ -128,3 +128,7 @@ Instructions for AI:
 3. Ensure clarity and conciseness in the summaries.
 4. Provide explanations for any increases or decreases in performance.
 5. Highlight key insights and trends.
+
+
+
+Summarize the financial report by including the following details: the formation/incorporation date, headquarters location, business description, employee count, latest revenues, stock exchange listing and market capitalization, number of offices and locations, and details on clients/customers; revenue percentage of each component (verticals, products, segments, sections) as a part of total revenue; performance comparison of each component by current year's sales/revenue and market share with the previous year's numbers, and explanation of sales increase/decrease for each component; breakdown of sales and revenue by geography, specifying the percentage contribution of each region to total sales, summary of workforce, clients, and offices by region, regional plans for expansion or reduction, and analysis of regional sales fluctuations, including sales trends; year-over-year sales increase or decline and reasons for the change; summary of rationale and considerations, including risks and mitigating factors; SWOT analysis including strengths, weaknesses, opportunities, and threats; and current credit rating with any changes in credit rating or rating outlook. Use this information to create a concise summary in a single paragraph.
