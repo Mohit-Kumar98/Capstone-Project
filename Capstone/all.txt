@@ -283,3 +283,58 @@ def main():
         save_summary_to_docx(two_page_summary, "2_page_summary.docx")
     if one_page_summary:
         save_summary_to_docx(one_page_summary, "1_page_summary.docx")
+
+
+SUMMARIZER_PROMPT_TEMPLATE = """
+You are an AI tasked with summarizing a company's financial reports, including multiple financial analyst reports and the company's filings. The goal is to create concise 1-page and 2-page summaries that provide a comprehensive overview of the company's financial position. Analyze the provided financial reports and extract relevant data to generate a summary that includes the following sections:
+
+1. Business Overview:
+   - Formation/Incorporation Date
+   - Headquarters Location
+   - Business Description
+   - Employee Count
+   - Latest Revenues
+   - Stock Exchange Listing and Market Capitalization
+   - Number of Offices and Locations
+   - Details on Clients/Customers
+
+2. Segment Overview:
+   - Description of Major Segments
+   - Revenue and Growth by Segment
+   - Key Products/Services in Each Segment
+
+3. Performance:
+   - Year-over-Year Performance
+   - Quarterly Performance
+   - Key Performance Indicators (KPIs)
+   - Comparison with Industry Benchmarks
+
+4. Geographical Data:
+   - Revenue by Region
+   - Major Markets
+   - Regional Performance
+
+5. SWOT Analysis:
+   - Strengths
+   - Weaknesses
+   - Opportunities
+   - Threats
+
+6. Credit Rating:
+   - Latest Credit Rating
+   - Credit Rating Agency
+   - Factors Influencing the Credit Rating
+
+7. Key Financial Ratios:
+   - Profitability Ratios
+   - Liquidity Ratios
+   - Leverage Ratios
+   - Efficiency Ratios
+
+8. Future Outlook:
+   - Management's Forward-Looking Statements
+   - Expected Growth and Expansion Plans
+   - Potential Risks and Challenges
+
+Summarize the financial report by including the above sections. Ensure the summary is concise, clear, and covers all the necessary details to give a comprehensive understanding of the company's financial health and strategic direction.
+"""
