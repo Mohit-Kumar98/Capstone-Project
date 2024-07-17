@@ -132,3 +132,108 @@ Instructions for AI:
 
 
 Summarize the financial report by including the following details: the formation/incorporation date, headquarters location, business description, employee count, latest revenues, stock exchange listing and market capitalization, number of offices and locations, and details on clients/customers; revenue percentage of each component (verticals, products, segments, sections) as a part of total revenue; performance comparison of each component by current year's sales/revenue and market share with the previous year's numbers, and explanation of sales increase/decrease for each component; breakdown of sales and revenue by geography, specifying the percentage contribution of each region to total sales, summary of workforce, clients, and offices by region, regional plans for expansion or reduction, and analysis of regional sales fluctuations, including sales trends; year-over-year sales increase or decline and reasons for the change; summary of rationale and considerations, including risks and mitigating factors; SWOT analysis including strengths, weaknesses, opportunities, and threats; and current credit rating with any changes in credit rating or rating outlook. Use this information to create a concise summary in a single paragraph.
+
+
+
+
+
+You are an AI tasked with summarizing a company's financial reports, including multiple financial analyst reports and the company's 10-K report. The goal is to create concise 1-page and 2-page summaries that provide a comprehensive overview of the company's financial position.
+
+Analyze the provided financial reports and extract relevant data to generate a summary that includes the following sections:
+
+1. Business Overview:
+   - Formation/Incorporation Date
+   - Headquarters Location
+   - Business Description
+   - Employee Count
+   - Latest Revenues
+   - Stock Exchange Listing and Market Capitalization
+   - Number of Offices and Locations
+   - Details on Clients/Customers
+
+2. Business Segment Overview:
+   - Revenue Percentage of Each Component (Verticals, Products, Segments, Sections) as a Part of Total Revenue
+
+3. Performance:
+   - Performance of Each Component by Comparing Current Year's Sales/Revenue and Market Share with the Previous Year's Numbers
+   - Explanation of Sales Increase/Decrease for Each Component
+
+4. Geographical Data:
+   - Breakdown of Sales and Revenue by Geography, Specifying the Percentage Contribution of Each Region to Total Sales
+   - Summary of Workforce, Clients, and Offices by Region
+   - Regional Plans for Expansion or Reduction
+   - Analysis and Explanation of Regional Sales Fluctuations, Including Sales Trends
+
+5. Year-over-Year Sales Analysis:
+   - Year-over-Year Sales Increase or Decline and Reasons for the Change
+
+6. Rationale and Considerations:
+   - Summary of Rationale and Considerations, Including Risks and Mitigating Factors
+
+7. SWOT Analysis:
+   - Strengths
+   - Weaknesses
+   - Opportunities
+   - Threats
+
+8. Credit Rating Information:
+   - Current Credit Rating
+   - Any Changes in Credit Rating or Rating Outlook
+
+Provide the relevant sections from the financial reports in a structured format, such as plain text or tables, to ensure accurate extraction and summarization.
+
+Example Output:
+
+1-Page Summary
+
+Business Overview:
+- Formation Date: 2000
+- Headquarters: New York, USA
+- Description: Leading provider of financial services...
+- Employee Count: 50,000
+- Latest Revenues: $20 Billion
+- Stock Exchange Listing: NYSE
+- Market Capitalization: $100 Billion
+- Offices and Locations: 100 offices worldwide
+- Clients/Customers: Major corporations, small businesses, individuals
+
+Business Segment Overview:
+- Products:
+  - Product A: 30% of total revenue
+  - Product B: 25% of total revenue
+  - ...
+
+Performance:
+- Product A: 2023 Revenue: $6 Billion, 2022 Revenue: $5 Billion
+  - Explanation: 20% increase due to market expansion...
+
+Geographical Data:
+- North America: 50% of total sales
+- Europe: 30% of total sales
+- Asia: 20% of total sales
+  - Regional Plans: Expanding operations in Asia...
+
+Year-over-Year Sales Analysis:
+- Total Sales Increase: 10%
+  - Reasons: Increased demand in emerging markets...
+
+Rationale and Considerations:
+- Risks: Market volatility...
+- Mitigating Factors: Diversification strategy...
+
+SWOT Analysis:
+- Strengths: Strong brand recognition...
+- Weaknesses: High dependency on North American market...
+- Opportunities: Growth in emerging markets...
+- Threats: Regulatory changes...
+
+Credit Rating Information:
+- Current Rating: A+
+- Recent Changes: Upgraded from A to A+ due to improved financial stability...
+
+Instructions for AI:
+1. Extract relevant data from the provided financial reports.
+2. Summarize the data into the specified sections.
+3. Ensure clarity and conciseness in the summaries.
+4. Provide explanations for any increases or decreases in performance.
+5. Highlight key insights and trends.
