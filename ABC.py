@@ -1,17 +1,16 @@
+import openai
 import os
 import shutil
 import argparse
 import tiktoken
-import openai
-import pdfplumber
-import fitz  # PyMuPDF
 from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.document_loaders.pdf import PyPDFDirectoryLoader
-from langchain.text_splitters import RecursiveCharacterTextSplitter
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.prompts import ChatPromptTemplate
 from docx import Document
+import camelot
 
 load_dotenv()
 os.environ['OPENAI_API_KEY'] = os.getenv("OPENAI_API_KEY")
@@ -40,9 +39,6 @@ Based on the following context, generate a concise 2-page summary and a 1-page s
 ### 1-page Summary:
 The 1-page summary should be a condensed version of the 2-pager, including key numbers and important points from the business segment overview and geographical segment overview.
 
-Tables and Images:
-Include references to relevant tables and images where necessary.
-
 Context:
 {context}
 
@@ -51,12 +47,8 @@ Context:
 Generate the summaries based on the above context.
 """
 
-class DocumentWrapper:
-    def __init__(self, page_content, metadata):
-        self.page_content = page_content
-        self.metadata = metadata
-
 def main():
+    # Check if the database should be cleared (using the --clear flag).
     parser = argparse.ArgumentParser()
     parser.add_argument("--clear", action="store_true", help="Clear the database.")
     args = parser.parse_args()
@@ -67,45 +59,35 @@ def main():
     documents = load_documents()
     chunks = split_documents(documents)
     
+    # Initialize the embedding model once
     embed_model = OpenAIEmbeddings(model="text-embedding-3-large")
     save_to_chroma(chunks, embed_model)
 
     two_page_summary, one_page_summary, total_tokens = summarize_documents()
     print(f"Total tokens used: {total_tokens}")
 
+    # Save summaries to .docx files
     save_summary_to_docx(two_page_summary, "2_page_summary.docx")
     save_summary_to_docx(one_page_summary, "1_page_summary.docx")
 
 def load_documents():
-    documents = []
-    for pdf_file in os.listdir(DATA_PATH):
-        if pdf_file.endswith(".pdf"):
-            pdf_path = os.path.join(DATA_PATH, pdf_file)
-            with pdfplumber.open(pdf_path) as pdf:
-                for page_num, page in enumerate(pdf.pages):
-                    text = page.extract_text()
-                    tables = page.extract_tables()
-                    images = extract_images_from_pdf(pdf_path, page_num)
-                    
-                    documents.append({
-                        "text": text,
-                        "tables": tables,
-                        "images": images,
-                        "source": pdf_file,
-                        "page": page_num + 1
-                    })
+    document_loader = PyPDFDirectoryLoader(DATA_PATH)
+    documents = document_loader.load()
+    
+    # Extract table data from PDFs
+    for doc in documents:
+        pdf_path = os.path.join(DATA_PATH, doc.metadata["source"])
+        tables = extract_tables_from_pdf(pdf_path)
+        doc.page_content += "\n\n".join(tables)
+    
     return documents
 
-def extract_images_from_pdf(pdf_path, page_num):
-    images = []
-    pdf_document = fitz.open(pdf_path)
-    page = pdf_document.load_page(page_num)
-    for img in page.get_images(full=True):
-        xref = img[0]
-        base_image = pdf_document.extract_image(xref)
-        image_bytes = base_image["image"]
-        images.append(image_bytes)
-    return images
+def extract_tables_from_pdf(pdf_path):
+    tables = camelot.read_pdf(pdf_path, pages="all", flavor='stream')
+    table_data = []
+    for table in tables:
+        table_data.append(table.df.to_string())
+    return table_data
 
 def split_documents(documents):
     text_splitter = RecursiveCharacterTextSplitter(
@@ -114,20 +96,7 @@ def split_documents(documents):
         length_function=len,
         is_separator_regex=False,
     )
-    chunks = []
-    for doc in documents:
-        text_chunks = text_splitter.split_text(doc["text"])
-        for chunk in text_chunks:
-            chunks.append(DocumentWrapper(
-                page_content=chunk,
-                metadata={
-                    "source": doc["source"],
-                    "page": doc["page"],
-                    "tables": doc["tables"],
-                    "images": doc["images"]
-                }
-            ))
-    return chunks
+    return text_splitter.split_documents(documents)
 
 def save_to_chroma(chunks, embed_model):
     if os.path.exists(CHROMA_PATH):
@@ -139,12 +108,15 @@ def save_to_chroma(chunks, embed_model):
     db.persist()
     print(f"Saved {len(chunks)} chunks to {CHROMA_PATH}.")
 
+    # Calculate Page IDs.
     chunks_with_ids = calculate_chunk_ids(chunks)
 
+    # Add or Update the documents.
     existing_items = db.get(include=[])  # IDs are always included by default
     existing_ids = set(existing_items["ids"])
     print(f"Number of existing documents in DB: {len(existing_ids)}")
 
+    # Only add documents that don't exist in the DB.
     new_chunks = []
     for chunk in chunks_with_ids:
         if chunk.metadata["id"] not in existing_ids:
@@ -186,21 +158,14 @@ def summarize_documents():
     embedding_function = OpenAIEmbeddings(model="text-embedding-3-large")
     db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
 
+    # Combine all chunks into one context text for summarization
     results = db.similarity_search_with_score(SUMMARIZER_PROMPT_TEMPLATE, k=5)
-    context_texts = []
-    tables = []
-    images = []
-
-    for doc, _score in results:
-        context_texts.append(doc.page_content)
-        tables.extend(doc.metadata.get("tables", []))
-        images.extend(doc.metadata.get("images", []))
-    
-    context_text = "\n\n---\n\n".join(context_texts)
+    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
     
     prompt_template = ChatPromptTemplate.from_template(SUMMARIZER_PROMPT_TEMPLATE)
     prompt = prompt_template.format(context=context_text)
 
+    # Count tokens for the prompt
     prompt_tokens = count_tokens(prompt)
 
     response = openai.ChatCompletion.create(
@@ -211,11 +176,13 @@ def summarize_documents():
         ]
     )
 
-    response_text = response.choices[0].message.content
+    response_text = response.choices[0].message['content']
 
+    # Split the response into 2-page and 1-page summaries
     two_page_summary, one_page_summary = response_text.split("###", 1)
     one_page_summary = one_page_summary.strip()
 
+    # Count tokens for the response
     response_tokens = count_tokens(response_text)
 
     total_tokens = prompt_tokens + response_tokens
@@ -228,7 +195,7 @@ def summarize_documents():
 def count_tokens(text):
     encoding = tiktoken.get_encoding("cl100k_base")
     tokens = encoding.encode(text)
-    return len(tokens
+    return len(tokens)
 
 def save_summary_to_docx(summary, filename):
     doc = Document()
