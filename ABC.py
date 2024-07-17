@@ -9,7 +9,7 @@ from dotenv import load_dotenv
 from langchain_openai import OpenAIEmbeddings
 from langchain_community.vectorstores import Chroma
 from langchain.document_loaders.pdf import PyPDFDirectoryLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
+from langchain.text_splitters import RecursiveCharacterTextSplitter
 from langchain.prompts import ChatPromptTemplate
 from docx import Document
 
@@ -50,6 +50,11 @@ Context:
 
 Generate the summaries based on the above context.
 """
+
+class DocumentWrapper:
+    def __init__(self, page_content, metadata):
+        self.page_content = page_content
+        self.metadata = metadata
 
 def main():
     parser = argparse.ArgumentParser()
@@ -113,15 +118,15 @@ def split_documents(documents):
     for doc in documents:
         text_chunks = text_splitter.split_text(doc["text"])
         for chunk in text_chunks:
-            chunks.append({
-                "page_content": chunk,
-                "metadata": {
+            chunks.append(DocumentWrapper(
+                page_content=chunk,
+                metadata={
                     "source": doc["source"],
                     "page": doc["page"],
                     "tables": doc["tables"],
                     "images": doc["images"]
                 }
-            })
+            ))
     return chunks
 
 def save_to_chroma(chunks, embed_model):
@@ -142,11 +147,11 @@ def save_to_chroma(chunks, embed_model):
 
     new_chunks = []
     for chunk in chunks_with_ids:
-        if chunk["metadata"]["id"] not in existing_ids:
+        if chunk.metadata["id"] not in existing_ids:
             new_chunks.append(chunk)
 
     if len(new_chunks):
-        new_chunk_ids = [chunk["metadata"]["id"] for chunk in new_chunks]
+        new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
         db.add_documents(new_chunks, ids=new_chunk_ids)
         db.persist()
     else:
@@ -157,8 +162,8 @@ def calculate_chunk_ids(chunks):
     current_chunk_index = 0
 
     for chunk in chunks:
-        source = chunk["metadata"].get("source")
-        page = chunk["metadata"].get("page")
+        source = chunk.metadata.get("source")
+        page = chunk.metadata.get("page")
         current_page_id = f"{source}:{page}"
 
         if current_page_id == last_page_id:
@@ -169,7 +174,7 @@ def calculate_chunk_ids(chunks):
         chunk_id = f"{current_page_id}:{current_chunk_index}"
         last_page_id = current_page_id
 
-        chunk["metadata"]["id"] = chunk_id
+        chunk.metadata["id"] = chunk_id
 
     return chunks
 
@@ -223,7 +228,7 @@ def summarize_documents():
 def count_tokens(text):
     encoding = tiktoken.get_encoding("cl100k_base")
     tokens = encoding.encode(text)
-    return len(tokens)
+    return len(tokens
 
 def save_summary_to_docx(summary, filename):
     doc = Document()
