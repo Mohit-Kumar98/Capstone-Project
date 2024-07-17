@@ -1,0 +1,285 @@
+import openai
+import os
+import shutil
+import argparse
+import tiktoken
+import pdfplumber
+from dotenv import load_dotenv
+from langchain.embeddings import OpenAIEmbeddings
+from langchain_core.documents import Document as doc
+from langchain.vectorstores import Chroma
+from langchain.document_loaders import PyPDFDirectoryLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.prompts import ChatPromptTemplate
+from docx import Document
+import camelot
+from unstructured.partition.pdf import partition_pdf
+from langchain.text_splitter import CharacterTextSplitter
+
+load_dotenv()
+
+# Check if the API key is correctly loaded
+api_key = os.getenv("OPENAI_API_KEY")
+if not api_key:
+    raise ValueError("OPENAI_API_KEY environment variable not set.")
+os.environ['OPENAI_API_KEY'] = api_key
+
+DATA_PATH = "data"
+CHROMA_PATH = "chroma"
+
+SUMMARIZER_PROMPT_TEMPLATE = """
+You are an AI tasked with summarizing a company's financial reports, including multiple financial analyst reports and the company's. The goal is to create concise 1-page and 2-page summaries that provide a comprehensive overview of the company's financial position.
+Analyze the provided financial reports and extract relevant data to generate a summary that includes the following sections:
+
+1. Business Overview:
+   - Formation/Incorporation Date
+   - Headquarters Location
+   - Business Description
+   - Employee Count
+   - Latest Revenues
+   - Stock Exchange Listing and Market Capitalization
+   - Number of Offices and Locations
+   - Details on Clients/Customers
+"""
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--clear", action="store_true", help="Clear the database.")
+    args = parser.parse_args()
+
+    if args.clear:
+        print("Clearing Database")
+        clear_database()
+
+    documents = load_documents()
+    chunks = split_documents(documents)
+    embed_model = OpenAIEmbeddings(model="text-embedding-3-large")
+    save_to_chroma(chunks, embed_model)
+
+    total_tokens = summarize_documents()
+    print(f"Total tokens used: {total_tokens}")
+
+def load_documents():
+    all_content = []
+    content = []
+    table_content = []
+
+    pdf_files = list_pdf_files_in_directory(DATA_PATH)
+
+    for name in pdf_files:
+        with pdfplumber.open(DATA_PATH + "/" + name) as pdf:
+            for page_number, page in enumerate(pdf.pages):
+                text = page.extract_text()
+                source = name
+                content.append(doc(page_content=text, metadata={'page_number': page_number + 1, 'source': source}))
+
+                tables = page.extract_tables()
+                for table in tables:
+                    res_in = ""
+                    for row in table:
+                        res_in += ' '.join((str(r) for r in row)) + " "
+                    table_content.append(doc(page_content=res_in, metadata={'page_number': page_number + 1, 'source': source}))
+
+    all_content.extend(content)
+    all_content.extend(table_content)
+
+    return all_content
+
+def list_pdf_files_in_directory(directory_path):
+    try:
+        files_and_dirs = os.listdir(directory_path)
+        pdf_files = [f for f in files_and_dirs if os.path.isfile(os.path.join(directory_path, f)) and f.lower().endswith('.pdf')]
+        return pdf_files
+    except FileNotFoundError:
+        print(f"The directory {directory_path} does not exist.")
+        return []
+
+def split_documents(documents):
+    text_splitter = RecursiveCharacterTextSplitter(
+        chunk_size=800,
+        chunk_overlap=80,
+        length_function=len,
+        is_separator_regex=False,
+    )
+    return text_splitter.split_documents(documents)
+
+def save_to_chroma(chunks, embed_model):
+    if os.path.exists(CHROMA_PATH):
+        shutil.rmtree(CHROMA_PATH)
+
+    db = Chroma.from_documents(chunks, embedding=embed_model, persist_directory=CHROMA_PATH)
+    db.persist()
+    print(f"Saved {len(chunks)} chunks to {CHROMA_PATH}.")
+
+    chunks_with_ids = calculate_chunk_ids(chunks)
+
+    existing_items = db.get(include=[])
+    existing_ids = set(existing_items["ids"])
+    print(f"Number of existing documents in DB: {len(existing_ids)}")
+
+    new_chunks = [chunk for chunk in chunks_with_ids if chunk.metadata["id"] not in existing_ids]
+
+    if len(new_chunks):
+        new_chunk_ids = [chunk.metadata["id"] for chunk in new_chunks]
+        db.add_documents(new_chunks, ids=new_chunk_ids)
+        db.persist()
+    else:
+        print("No new documents to add")
+
+def calculate_chunk_ids(chunks):
+    last_page_id = None
+    current_chunk_index = 0
+
+    for chunk in chunks:
+        source = chunk.metadata.get("source")
+        page = chunk.metadata.get("page")
+        current_page_id = f"{source}:{page}"
+
+        if current_page_id == last_page_id:
+            current_chunk_index += 1
+        else:
+            current_chunk_index = 0
+
+        chunk_id = f"{current_page_id}:{current_chunk_index}"
+        chunk.metadata["id"] = chunk_id
+        last_page_id = current_page_id
+
+    return chunks
+
+def clear_database():
+    if os.path.exists(CHROMA_PATH):
+        shutil.rmtree(CHROMA_PATH)
+
+def summarize_documents():
+    embedding_function = OpenAIEmbeddings(model="text-embedding-3-large")
+    db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+
+    results = db.similarity_search_with_score(SUMMARIZER_PROMPT_TEMPLATE, k=5)
+    context_text = "\n\n---\n\n".join([doc.page_content for doc, score in results])
+
+    prompt_template = ChatPromptTemplate.from_template(SUMMARIZER_PROMPT_TEMPLATE)
+    prompt = prompt_template.format(context=context_text)
+
+    prompt_tokens = count_tokens(prompt)
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+        response_text = response.choices[0].message.content
+        print(response_text)
+
+        response_tokens = count_tokens(response_text)
+        total_tokens = prompt_tokens + response_tokens
+
+        return total_tokens
+    except Exception as e:
+        print(f"Error during OpenAI API call: {e}")
+        return None
+
+def count_tokens(text):
+    encoding = tiktoken.get_encoding("cl100k_base")
+    tokens = encoding.encode(text)
+    return len(tokens)
+
+def save_summary_to_docx(summary, filename):
+    doc = Document()
+    doc.add_paragraph(summary)
+    doc.save(filename)
+    print(f"Saved summary to {filename}")
+
+if __name__ == "__main__":
+    main()
+
+
+
+
+
+
+import openai
+from langchain.prompts import ChatPromptTemplate
+
+def summarize_documents():
+    embedding_function = OpenAIEmbeddings(model="text-embedding-3-large")
+    db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+
+    # Get the most relevant chunks based on similarity search
+    results = db.similarity_search_with_score(SUMMARIZER_PROMPT_TEMPLATE, k=5)
+    context_text = "\n\n---\n\n".join([doc.page_content for doc, score in results])
+
+    # Format the prompt with the context
+    prompt_template = ChatPromptTemplate.from_template(SUMMARIZER_PROMPT_TEMPLATE)
+    prompt = prompt_template.format(context=context_text)
+
+    # Count tokens for the prompt
+    prompt_tokens = count_tokens(prompt)
+
+    try:
+        # Make the API call to OpenAI
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        # Extract response text
+        response_text = response.choices[0].message.content
+        print(response_text)
+
+        # Count tokens for the response
+        response_tokens = count_tokens(response_text)
+        total_tokens = prompt_tokens + response_tokens
+
+        # Process the response text to split into 1-page and 2-page summaries if needed
+        try:
+            two_page_summary, one_page_summary = response_text.split("###", 1)
+            one_page_summary = one_page_summary.strip()
+            two_page_summary = two_page_summary.strip()
+        except ValueError:
+            two_page_summary = response_text.strip()
+            one_page_summary = ""
+
+        return two_page_summary, one_page_summary, total_tokens
+
+    except Exception as e:
+        print(f"Error during OpenAI API call: {e}")
+        return None, None, None
+
+def count_tokens(text):
+    encoding = tiktoken.get_encoding("cl100k_base")
+    tokens = encoding.encode(text)
+    return len(tokens)
+
+
+
+if __name__ == "__main__":
+    main()
+
+
+def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--clear", action="store_true", help="Clear the database.")
+    args = parser.parse_args()
+
+    if args.clear:
+        print("Clearing Database")
+        clear_database()
+
+    documents = load_documents()
+    chunks = split_documents(documents)
+    embed_model = OpenAIEmbeddings(model="text-embedding-3-large")
+    save_to_chroma(chunks, embed_model)
+
+    two_page_summary, one_page_summary, total_tokens = summarize_documents()
+    print(f"Total tokens used: {total_tokens}")
+
+    if two_page_summary:
+        save_summary_to_docx(two_page_summary, "2_page_summary.docx")
+    if one_page_summary:
+        save_summary_to_docx(one_page_summary, "1_page_summary.docx")
