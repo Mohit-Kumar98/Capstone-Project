@@ -5,17 +5,27 @@ pdf_path = 'data/NIT MCA syllabus.pdf'
 
 # Open the PDF file
 with pdfplumber.open(pdf_path) as pdf:
+    res = ""
+    res_in = ""
     for page_number, page in enumerate(pdf.pages):
+        res_in  = ""
         print(f"\n--- Page {page_number + 1} ---")
         
         # Extract text
         text = page.extract_text()
-        print("Text:")
-        print(text)
+        # print(type(text))
+        # print("Text:")
+        # print(text)
         
         # Extract tables
         tables = page.extract_tables()
-        print("Tables:")
+        # print(type(tables))
+        # print("Tables:")
         for table in tables:
             for row in table:
-                print(row)
+                res_in = res_in + ' '.join([str(r) for r in row])
+        res_in = res_in + text
+        res = res + res_in
+        # print(res_in)
+    # res = res + res_in
+    print(res)
