@@ -1,31 +1,48 @@
 import pdfplumber
 
-# Path to your PDF file
-pdf_path = 'data/NIT MCA syllabus.pdf'
+all_content=[]
+content=[]
+table_content=[]
+
+def list_pdf_files_in_directory(directory_path):
+    try:
+        # List all files and directories in the given path
+        files_and_dirs = os.listdir(directory_path)
+        
+        # Filter out directories and non-PDF files, keeping only PDF files
+        pdf_files = [f for f in files_and_dirs if os.path.isfile(os.path.join(directory_path, f)) and f.lower().endswith('.pdf')]
+        
+        return pdf_files
+    except FileNotFoundError:
+        print(f"The directory {directory_path} does not exist.")
+        return []
+
+
+pdf_files = list_pdf_files_in_directory(DATA_PATH)
+
+
 
 # Open the PDF file
-with pdfplumber.open(pdf_path) as pdf:
-    res = ""
-    res_in = ""
-    for page_number, page in enumerate(pdf.pages):
-        res_in  = ""
-        print(f"\n--- Page {page_number + 1} ---")
-        
-        # Extract text
-        text = page.extract_text()
-        # print(type(text))
-        # print("Text:")
-        # print(text)
-        
-        # Extract tables
-        tables = page.extract_tables()
-        # print(type(tables))
-        # print("Tables:")
-        for table in tables:
-            for row in table:
-                res_in = res_in + ' '.join([str(r) for r in row])
-        res_in = res_in + text
-        res = res + res_in
-        # print(res_in)
-    # res = res + res_in
-    print(res)
+for name in pdf_files:
+    with pdfplumber.open(DATA_PATH+"/"+name) as pdf:
+        for page_number, page in enumerate(pdf.pages):
+            pg = page_number
+            text = page.extract_text()
+            source= name
+            content.append({'page': pg+1,'text':text, 'source':source})
+            res_in  = ""
+
+            # Extract tables
+            tables = page.extract_tables()
+            # print(type(tables))
+            # print("Tables:")
+            for table in tables:
+                res_in = ""
+                for row in table:
+                    res_in = res_in + ' '.join([str(r) for r in row])
+                table_content.append({'page': pg+1,'text':res_in, 'source':source})
+            # res_in = res_in + text
+        all_content.extend(content)
+        all_content.extend(table_content)
+
+
