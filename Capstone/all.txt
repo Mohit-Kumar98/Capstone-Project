@@ -75,22 +75,25 @@ Summarize the financial report by including the above sections. Ensure the summa
 """
 map_prompt_template = PromptTemplate(input_variables=['text'], template=SUMMARIZER_PROMPT_TEMPLATE)
 
-# Define the final combine prompt (if needed)
+# Define the final combine prompt
 final_combine_prompt = """
-Provide a final summary of the financial reports with these important points.
-Speech: `{text}`
+Provide a final summary of the financial reports with these important points:
+{text}
 """
 final_combine_prompt_template = PromptTemplate(input_variables=['text'], template=final_combine_prompt)
 
 # Create the summarize chain with custom prompts
-summary_chain = load_summarize_chain(
-    llm=llm,
-    chain_type='map_reduce',
-    map_prompt=map_prompt_template,
-    combine_prompt=final_combine_prompt_template,
-    verbose=False
-)
+try:
+    summary_chain = load_summarize_chain(
+        llm=llm,
+        chain_type='map_reduce',
+        map_prompt=map_prompt_template,
+        combine_prompt=final_combine_prompt_template,
+        verbose=False
+    )
 
-# Run the summary chain
-output = summary_chain.run(chunks)
-print(output)
+    # Run the summary chain
+    output = summary_chain.run(chunks)
+    print(output)
+except Exception as e:
+    print(f"An error occurred: {e}")
