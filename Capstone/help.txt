@@ -1,3 +1,42 @@
+
+Project Definition:
+
+The project aims to create a Al based solution that simplify the process of reviewing and understanding a company's financial position by creating concise 1-page and 2-page summaries The project aims to analyse multiple financial analyst reports along 10-K report of a company and extract relevant data and generate 2 pager summary that outlines the below points:
+
+Business Overview - Include information such as the company's formation/incorporation date, headquarters location, business description, employee count, latest revenues, stock exchange listing and market capitalization, number of offices and locations, and details on their clients/customers
+
+• Business Segment Overview
+
+Extract the revenue percentage of each component (verticals, products, segments, and sections) as a part of the total revenue.
+
+Performance: Evaluate the performance of each component by comparing the current year's sales/revenue and market share with the previous year's numbers.
+Sales Increase/Decrease explanation: Explain the causes of the increase or decrease in the performance of each component.
+
+Breakdown of sales and revenue by geography, specifying the percentage contribution of each region to the total sales.
+
+Summarize geographical data, such as workforce, clients, and offices, and outline the company's regional plans for expansion or reduction.
+
+Analyze and explain regional sales fluctuations, including a glographical sales breakdown to identify sales trends.
+
+Year-over-year sales increase or decline and reasons for the change
+
+Summary of rationale & considerations (risks & mitigating factors)
+
+SWOT Analysis
+
+Information about credit rating/credit rating change/change in the rating outlook
+
+The 1-page summary should be summary of 2-pager including the numbers from Business segment overview & geographical segment overview with all the important points.
+
+
+
+
+
+
+
+
+
+
 import pdfplumber
 
 all_content=[]
